@@ -1,26 +1,24 @@
 import os
 import time
 from dotenv import load_dotenv
-from openai import OpenAI
+import google.generativeai as genai
 import sys
 
 # Load environment variables
 load_dotenv()
 
 # Configuration
-MODEL_NAME = "meta-llama/Meta-Llama-3-70B-Instruct"
+MODEL_NAME = "models/gemini-1.5-flash-latest"
 DEFAULT_TEMPERATURE = 0.7
-TIMEOUT_SECONDS = 30
 
 class ChatAssistant:
     def __init__(self):
         """Initialize the AI client with configuration"""
-        self.client = OpenAI(
-            base_url="https://api.deepinfra.com/v1/openai",
-            api_key=os.getenv("DEEPINFRA_API_KEY"),
-            timeout=TIMEOUT_SECONDS
-        )
-        self.model_name = MODEL_NAME
+        genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+        self.model = genai.GenerativeModel(MODEL_NAME)
+        self.generation_config = {
+            "temperature": DEFAULT_TEMPERATURE
+        }
     
     @staticmethod
     def sanitize_response(response_text: str) -> str:
@@ -41,13 +39,12 @@ class ChatAssistant:
             if not user_input.strip():
                 raise ValueError("Empty input provided")
             
-            completion = self.client.chat.completions.create(
-                model=self.model_name,
-                messages=[{"role": "user", "content": user_input}],
-                temperature=DEFAULT_TEMPERATURE
+            response = self.model.generate_content(
+                user_input,
+                generation_config=self.generation_config
             )
             
-            result["response"] = self.sanitize_response(completion.choices[0].message.content)
+            result["response"] = self.sanitize_response(response.text)
         except Exception as e:
             result["error"] = str(e)
         
