@@ -2,7 +2,7 @@ import os
 import time
 from dotenv import load_dotenv
 import google.generativeai as genai
-import sys
+from flask import Flask, request, jsonify
 
 # Load environment variables
 load_dotenv()
@@ -10,6 +10,8 @@ load_dotenv()
 # Configuration
 MODEL_NAME = "models/gemini-1.5-flash-latest"
 DEFAULT_TEMPERATURE = 0.7
+
+app = Flask(__name__)
 
 class ChatAssistant:
     def __init__(self):
@@ -50,24 +52,29 @@ class ChatAssistant:
         
         return result
 
-def main():
+# Initialize the assistant
+assistant = ChatAssistant()
+
+@app.route('/api/chat', methods=['POST'])
+def chat():
     try:
-        assistant = ChatAssistant()
+        data = request.get_json()
+        if not data or 'message' not in data:
+            return jsonify({"error": "No message provided"}), 400
         
-        if len(sys.argv) > 1:
-            user_input = " ".join(sys.argv[1:])
-            response_data = assistant.generate_response(user_input)
-            
-            if response_data["error"]:
-                print(f"Error: {response_data['error']}")
-            else:
-                print(response_data["response"])
-        else:
-            print("Please provide input as command line arguments.")
-            
+        response_data = assistant.generate_response(data['message'])
+        
+        if response_data["error"]:
+            return jsonify({"error": response_data["error"]}), 500
+        
+        return jsonify({"response": response_data["response"]})
     except Exception as e:
-        print(f"Fatal error: {e}")
-        sys.exit(1)
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/')
+def home():
+    return "AskGio API is running!"
 
 if __name__ == "__main__":
-    main()
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host='0.0.0.0', port=port)
